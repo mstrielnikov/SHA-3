@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include "sha3.h"
-#include "test_vectors.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;
@@ -19,51 +18,32 @@ static int tests_failed = 0;
     } \
 } while(0)
 
-#define TEST_ASSERT_HASH(vec) do { \
+static int hexcmp(const char *a, const char *b, size_t len) {
+    for (size_t i = 0; i < len; i++) {
+        if (a[i] != b[i]) return 0;
+    }
+    return 1;
+}
+
+#define TEST_HASH(bit_len, func, input, expected) do { \
     tests_run++; \
-    sha3_context ctx; \
-    sha3_init(&ctx, (vec)->bit_len); \
-    sha3_update(&ctx, (const sha3_byte_t*)(vec)->input, (vec)->input_len); \
     sha3_byte_t hash[64]; \
-    sha3_final(&ctx, hash); \
-    \
-    size_t expected_len = (vec)->bit_len / 8; \
+    size_t input_len = strlen(input); \
+    func((const sha3_byte_t*)(input), input_len, hash); \
     char hash_hex[256] = {0}; \
-    for (size_t i = 0; i < expected_len; i++) { \
+    for (size_t i = 0; i < bit_len/8; i++) { \
         sprintf(hash_hex + i*2, "%02x", hash[i]); \
     } \
-    \
-    if (memcmp(hash_hex, (vec)->expected_hex, expected_len * 2) == 0) { \
+    if (hexcmp(hash_hex, expected, bit_len/8 * 2)) { \
         tests_passed++; \
-        printf("[PASS] SHA3-%lu \"%s\"\n", (unsigned long)(vec)->bit_len, (vec)->input); \
+        printf("[PASS] SHA3-%d \"%s\"\n", bit_len, input); \
     } else { \
         tests_failed++; \
-        printf("[FAIL] SHA3-%lu \"%s\"\n", (unsigned long)(vec)->bit_len, (vec)->input); \
-        printf("  Expected: %s\n", (vec)->expected_hex); \
+        printf("[FAIL] SHA3-%d \"%s\"\n", bit_len, input); \
+        printf("  Expected: %s\n", expected); \
         printf("  Got:      %s\n", hash_hex); \
     } \
 } while(0)
-
-void test_short_vectors(void) {
-    printf("\n=== Short Input Test Vectors ===\n");
-    for (size_t i = 0; i < SHA3_SHORT_VECTORS_COUNT; i++) {
-        TEST_ASSERT_HASH(&sha3_short_test_vectors[i]);
-    }
-}
-
-void test_variable_length(void) {
-    printf("\n=== Variable Length Test Vectors ===\n");
-    for (size_t i = 0; i < SHA3_VARIABLE_VECTORS_COUNT; i++) {
-        TEST_ASSERT_HASH(&sha3_variable_length_test_vectors[i]);
-    }
-}
-
-void test_nist_vectors(void) {
-    printf("\n=== NIST Test Vectors ===\n");
-    for (size_t i = 0; i < SHA3_NIST_VECTORS_COUNT; i++) {
-        TEST_ASSERT_HASH(&sha3_nist_test_vectors[i]);
-    }
-}
 
 void test_api_init(void) {
     printf("\n=== API: Initialization ===\n");
@@ -85,19 +65,22 @@ void test_api_update(void) {
     printf("\n=== API: Update ===\n");
     sha3_context ctx;
     sha3_byte_t hash[64];
+    sha3_byte_t hash_single[64];
     
     sha3_init(&ctx, 256);
     sha3_update(&ctx, (const sha3_byte_t*)"a", 1);
     sha3_update(&ctx, (const sha3_byte_t*)"bc", 2);
     sha3_final(&ctx, hash);
     
-    sha3_context ctx_single;
-    sha3_init(&ctx_single, 256);
-    sha3_update(&ctx_single, (const sha3_byte_t*)"abc", 3);
-    sha3_final(&ctx_single, hash);
+    sha3_256((const sha3_byte_t*)"abc", 3, hash_single);
+    
+    int match = 1;
+    for (int i = 0; i < 32; i++) {
+        if (hash[i] != hash_single[i]) match = 0;
+    }
+    TEST_ASSERT(match, "Split updates match single sha3_256");
     
     TEST_ASSERT(ctx.count == 3, "Update accumulates count correctly");
-    TEST_ASSERT(ctx.count == ctx_single.count, "Split updates match single update");
 }
 
 void test_api_final(void) {
@@ -108,45 +91,70 @@ void test_api_final(void) {
     sha3_init(&ctx, 256);
     sha3_final(&ctx, hash);
     
-    int has_nonzero = 0;
-    for (int i = 0; i < 32; i++) {
-        if (hash[i] != 0) has_nonzero = 1;
-    }
-    TEST_ASSERT(has_nonzero, "Final produces non-zero hash for empty input");
+    sha3_byte_t expected[32];
+    sha3_256((const sha3_byte_t*)"", 0, expected);
     
-    const unsigned char expected_empty_sha3_256[] = {
-        0xa7, 0xff, 0xc6, 0xf8, 0xbf, 0x1e, 0xd7, 0x66,
-        0x51, 0xc1, 0x47, 0x56, 0xa0, 0x61, 0xd6, 0x62,
-        0xf5, 0x80, 0xff, 0x4d, 0xe4, 0x3b, 0x49, 0xfa,
-        0x82, 0xd8, 0x0a, 0x4b, 0x80, 0xf8, 0x43, 0x4a
-    };
     int match = 1;
     for (int i = 0; i < 32; i++) {
-        if (hash[i] != expected_empty_sha3_256[i]) match = 0;
+        if (hash[i] != expected[i]) match = 0;
     }
-    TEST_ASSERT(match, "Empty input produces correct SHA3-256 hash");
+    TEST_ASSERT(match, "Final matches sha3_256 for empty input");
 }
 
 void test_multiblock(void) {
     printf("\n=== Multi-Block Message ===\n");
     const char *long_msg = "The quick brown fox jumps over the lazy dog";
     sha3_context ctx;
-    sha3_byte_t hash[64];
+    sha3_byte_t hash[32];
+    sha3_byte_t hash_direct[32];
     
     sha3_init(&ctx, 256);
     size_t chunk = 17;
-    for (size_t i = 0; i < strlen(long_msg); i += chunk) {
-        size_t len = (i + chunk < strlen(long_msg)) ? chunk : strlen(long_msg) - i;
+    size_t msg_len = strlen(long_msg);
+    for (size_t i = 0; i < msg_len; i += chunk) {
+        size_t len = (i + chunk < msg_len) ? chunk : msg_len - i;
         sha3_update(&ctx, (const sha3_byte_t*)long_msg + i, len);
     }
     sha3_final(&ctx, hash);
     
-    sha3_context ctx_direct;
-    sha3_init(&ctx_direct, 256);
-    sha3_update(&ctx_direct, (const sha3_byte_t*)long_msg, strlen(long_msg));
-    sha3_final(&ctx_direct, hash);
+    sha3_256((const sha3_byte_t*)long_msg, msg_len, hash_direct);
     
-    TEST_ASSERT(ctx.count == ctx_direct.count, "Multi-block count matches direct");
+    int match = 1;
+    for (int i = 0; i < 32; i++) {
+        if (hash[i] != hash_direct[i]) match = 0;
+    }
+    TEST_ASSERT(match, "Multi-block matches single sha3_256 call");
+}
+
+void test_short_vectors(void) {
+    printf("\n=== Short Input Test Vectors ===\n");
+    TEST_HASH(256, sha3_256, "",      "a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a");
+    TEST_HASH(256, sha3_256, "a",     "80084bf2fba02475726feb2cab2d8215eab14bc6bdd8bfb2c8151257032ecd8b");
+    TEST_HASH(256, sha3_256, "abc",   "3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532");
+    TEST_HASH(256, sha3_256, "message", "7f4a23d90de90d100754f82d6c14073b7fb466f76fd1f61b187b9f39c3ffd895");
+}
+
+void test_variable_length(void) {
+    printf("\n=== Variable Length Test Vectors ===\n");
+    TEST_HASH(224, sha3_224, "abc", "e642824c3f8cf24ad09234ee7d3c766fc9a3a5168d0c94ad73b46fdf");
+    TEST_HASH(256, sha3_256, "abc", "3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532");
+    TEST_HASH(384, sha3_384, "abc", "ec01498288516fc926459f58e2c6ad8df9b473cb0fc08c2596da7cf0e49be4b298d88cea927ac7f539f1edf228376d25");
+    TEST_HASH(512, sha3_512, "abc", "b751850b1a57168a5693cd924b6b096e08f621827444f70d884f5d0240d2712e10e116e9192af3c91a7ec57647e3934057340b4cf408d5a56592f8274eec53f0");
+}
+
+void test_nist_vectors(void) {
+    printf("\n=== NIST Test Vectors ===\n");
+    const char *nist_msg = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
+    
+    TEST_HASH(224, sha3_224, "abc", "e642824c3f8cf24ad09234ee7d3c766fc9a3a5168d0c94ad73b46fdf");
+    TEST_HASH(256, sha3_256, "abc", "3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532");
+    TEST_HASH(384, sha3_384, "abc", "ec01498288516fc926459f58e2c6ad8df9b473cb0fc08c2596da7cf0e49be4b298d88cea927ac7f539f1edf228376d25");
+    TEST_HASH(512, sha3_512, "abc", "b751850b1a57168a5693cd924b6b096e08f621827444f70d884f5d0240d2712e10e116e9192af3c91a7ec57647e3934057340b4cf408d5a56592f8274eec53f0");
+    
+    TEST_HASH(224, sha3_224, nist_msg, "8a24108b154ada21c9fd5574494479ba5c7e7ab76ef264ead0fcce33");
+    TEST_HASH(256, sha3_256, nist_msg, "41c0dba2a9d6240849100376a8235e2c82e1b9998a999e21db32dd97496d3376");
+    TEST_HASH(384, sha3_384, nist_msg, "991c665755eb3a4b6bbdfb75c78a492e8c56a22c5c4d7e429bfdbc32b9d4ad5aa04a1f076e62fea19eef51acd0657c22");
+    TEST_HASH(512, sha3_512, nist_msg, "04a371e84ecfb5b8b77cb48610fca8182dd457ce6f326a0fd3d7ec2f1e91636dee691fbe0c985302ba1b0d8dc78c086346b533b49c030d99a27daf1139d6e75e");
 }
 
 int main(void) {

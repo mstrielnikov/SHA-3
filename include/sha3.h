@@ -21,4 +21,9 @@ void sha3_final(sha3_context *ctx, sha3_byte_t *hash);
 
 sha3_byte_t *sha3_hash(const sha3_byte_t *data, sha3_size_t len, sha3_size_t hash_bit_len, sha3_byte_t *hash);
 
+sha3_byte_t *sha3_224(const sha3_byte_t *data, sha3_size_t len, sha3_byte_t *hash);
+sha3_byte_t *sha3_256(const sha3_byte_t *data, sha3_size_t len, sha3_byte_t *hash);
+sha3_byte_t *sha3_384(const sha3_byte_t *data, sha3_size_t len, sha3_byte_t *hash);
+sha3_byte_t *sha3_512(const sha3_byte_t *data, sha3_size_t len, sha3_byte_t *hash);
+
 #endif  // SHA3_H

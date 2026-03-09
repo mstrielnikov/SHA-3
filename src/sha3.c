@@ -75,3 +75,19 @@ sha3_byte_t *sha3_hash(const sha3_byte_t *data, sha3_size_t len, sha3_size_t has
     return hash;
 }
 
+sha3_byte_t *sha3_224(const sha3_byte_t *data, sha3_size_t len, sha3_byte_t *hash) {
+    return sha3_hash(data, len, 224, hash);
+}
+
+sha3_byte_t *sha3_256(const sha3_byte_t *data, sha3_size_t len, sha3_byte_t *hash) {
+    return sha3_hash(data, len, 256, hash);
+}
+
+sha3_byte_t *sha3_384(const sha3_byte_t *data, sha3_size_t len, sha3_byte_t *hash) {
+    return sha3_hash(data, len, 384, hash);
+}
+
+sha3_byte_t *sha3_512(const sha3_byte_t *data, sha3_size_t len, sha3_byte_t *hash) {
+    return sha3_hash(data, len, 512, hash);
+}
+

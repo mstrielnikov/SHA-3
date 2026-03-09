@@ -4,28 +4,35 @@
 #include "sha3.h"
 
 int main() {
-    const char* input_string = "Hello, SHA-3!";
+    const char* input = "Hello, SHA-3!";
+    sha3_size_t len = 13;
 
-    sha3_context ctx;
-    sha3_init(&ctx, 256);
-    printf("block_size = %lu, hash_bit_len = %lu\n", (unsigned long)ctx.block_size, (unsigned long)ctx.hash_bit_len);
-    sha3_update(&ctx, (const uint8_t*)input_string, 13);
-    uint8_t hash[32];
-    sha3_final(&ctx, hash);
+    sha3_byte_t hash256[32];
+    sha3_byte_t hash224[28];
+    sha3_byte_t hash384[48];
+    sha3_byte_t hash512[64];
 
-    printf("Input String: %s\n", input_string);
-    printf("SHA3-256 (context API): ");
-    for (size_t i = 0; i < 32; i++) {
-        printf("%02x", hash[i]);
-    }
+    sha3_256((const sha3_byte_t*)input, len, hash256);
+    sha3_224((const sha3_byte_t*)input, len, hash224);
+    sha3_384((const sha3_byte_t*)input, len, hash384);
+    sha3_512((const sha3_byte_t*)input, len, hash512);
+
+    printf("Input: \"%s\"\n\n", input);
+
+    printf("SHA3-224: ");
+    for (size_t i = 0; i < 28; i++) printf("%02x", hash224[i]);
     printf("\n");
 
-    uint8_t hash2[32];
-    sha3_hash((const uint8_t*)input_string, 13, 256, hash2);
-    printf("SHA3-256 (high-level):  ");
-    for (size_t i = 0; i < 32; i++) {
-        printf("%02x", hash2[i]);
-    }
+    printf("SHA3-256: ");
+    for (size_t i = 0; i < 32; i++) printf("%02x", hash256[i]);
+    printf("\n");
+
+    printf("SHA3-384: ");
+    for (size_t i = 0; i < 48; i++) printf("%02x", hash384[i]);
+    printf("\n");
+
+    printf("SHA3-512: ");
+    for (size_t i = 0; i < 64; i++) printf("%02x", hash512[i]);
     printf("\n");
 
     return 0;
