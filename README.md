@@ -9,6 +9,7 @@ A portable, zero-dependency C implementation of the SHA-3 (Keccak) cryptographic
 - **Multiple hash sizes** - SHA3-224, SHA3-256, SHA3-384, SHA3-512
 - **Simple API** - High-level one-shot functions and low-level context API
 - **Well tested** - Full test suite with NIST test vectors
+- **Python bindings** - [C extension module](python/README.md) for Python
 
 ## Quick Start
 
@@ -60,17 +61,17 @@ For streaming/incremental hashing of large data.
 
 ## Data Types
 
-| Type | Description |
-|------|-------------|
-| `sha3_byte_t` | Unsigned char (8-bit) |
+| Type            | Description             |
+| --------------- | ----------------------- |
+| `sha3_byte_t`   | Unsigned char (8-bit)   |
 | `sha3_uint64_t` | Unsigned 64-bit integer |
-| `sha3_size_t` | Unsigned size type |
-| `sha3_context` | Opaque state structure |
+| `sha3_size_t`   | Unsigned size type      |
+| `sha3_context`  | Opaque state structure  |
 
 ## Hash Output Sizes
 
-| Function | Output Size |
-|----------|-------------|
+| Function   | Output Size         |
+| ---------- | ------------------- |
 | `sha3_224` | 28 bytes (224 bits) |
 | `sha3_256` | 32 bytes (256 bits) |
 | `sha3_384` | 48 bytes (384 bits) |
@@ -86,16 +87,16 @@ For streaming/incremental hashing of large data.
 
 int main() {
     const char *msg = "Hello, SHA-3!";
-    
+
     sha3_byte_t hash[32];
     sha3_256((const sha3_byte_t*)msg, 13, hash);
-    
+
     printf("SHA3-256: ");
     for (int i = 0; i < 32; i++) {
         printf("%02x", hash[i]);
     }
     printf("\n");
-    
+
     return 0;
 }
 ```
@@ -133,6 +134,7 @@ SHA-3/
 ## Testing
 
 The test suite includes:
+
 - API initialization tests
 - Multi-block message handling
 - Short input test vectors
@@ -140,6 +142,7 @@ The test suite includes:
 - NIST test vectors
 
 Run tests with:
+
 ```bash
 make tests
 ```
