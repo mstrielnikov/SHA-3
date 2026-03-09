@@ -1,16 +1,23 @@
 #include "sha3.h"
 #include "keccak.h"
-#include <string.h>
+
+static void *sha3_memset(void *s, int c, sha3_size_t n) {
+    sha3_byte_t *p = s;
+    while (n) {
+        *p++ = (sha3_byte_t)c;
+        n--;
+    }
+    return s;
+}
 
 void sha3_init(sha3_context *ctx, sha3_size_t hash_bit_len) {
-    memset(ctx, 0, sizeof(*ctx));
+    sha3_memset(ctx, 0, sizeof(*ctx));
 
     if (hash_bit_len == 224 || hash_bit_len == 256 ||
         hash_bit_len == 384 || hash_bit_len == 512) {
         ctx->block_size   = (1600 - hash_bit_len * 2) / 8;
         ctx->hash_bit_len = hash_bit_len;
     } else {
-        // Unsupported
         ctx->block_size = 0;
         return;
     }
@@ -45,7 +52,7 @@ void sha3_final(sha3_context *ctx, sha3_byte_t *hash) {
     }
     
     ctx->buffer[index++] = 0x06;
-    memset(ctx->buffer + index, 0, ctx->block_size - index);
+    sha3_memset(ctx->buffer + index, 0, ctx->block_size - index);
     ctx->buffer[ctx->block_size - 1] |= 0x80;
 
     keccak_absorb(ctx);
