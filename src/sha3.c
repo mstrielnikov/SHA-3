@@ -69,7 +69,7 @@ void sha3_final(sha3_context *ctx, sha3_byte_t *hash) {
 sha3_byte_t *sha3_hash(const sha3_byte_t *data, sha3_size_t len, sha3_size_t hash_bit_len, sha3_byte_t *hash) {
     sha3_context ctx;
     sha3_init(&ctx, hash_bit_len);
-    if (ctx.block_size == 0) return NULL;
+    if (ctx.block_size == 0) return (void*)(0);
     sha3_update(&ctx, data, len);
     sha3_final(&ctx, hash);
     return hash;

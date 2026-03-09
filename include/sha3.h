@@ -1,8 +1,6 @@
 #ifndef SHA3_H
 #define SHA3_H
 
-#include <stddef.h>
-
 #define sha3_uint64_t unsigned long long int
 #define sha3_size_t unsigned long int
 #define sha3_byte_t unsigned char   
